@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Universal Rich Writer + Notes</title>
+    <title>Universal Rich Writer</title>
     <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -52,7 +52,6 @@
             overflow: hidden;
         }
 
-        /* SIDEBAR STYLES */
         .sidebar {
             width: 260px;
             background: var(--sidebar-bg);
@@ -70,16 +69,6 @@
             overflow: hidden;
         }
 
-        .sidebar-header {
-            font-weight: 600;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 1rem;
-            color: var(--accent);
-            white-space: nowrap;
-        }
-
         #notes-area {
             flex-grow: 1;
             background: transparent;
@@ -92,7 +81,6 @@
             resize: none;
         }
 
-        /* MAIN EDITOR STYLES */
         .main-container {
             flex-grow: 1;
             overflow-y: auto;
@@ -156,7 +144,6 @@
 
         .download-btn { background-color: var(--accent); color: white; border: none; }
         
-        /* Simple Icon SVGs */
         svg { width: 14px; height: 14px; fill: currentColor; }
     </style>
 </head>
@@ -164,15 +151,16 @@
 
     <nav>
         <div style="display: flex; align-items: center; gap: 15px;">
-            <button class="action-btn" onclick="toggleSidebar()" title="Toggle Notes">≡</button>
+            <button class="action-btn" onclick="toggleSidebar()" title="Toggle Sidebar">≡</button>
             <div style="font-weight: 600; letter-spacing: 0.5px;">WRITER</div>
         </div>
         
         <div class="controls">
             <div class="format-group">
                 <button class="format-btn" onclick="apply('bold')" title="Bold"><b>B</b></button>
-                <button class="format-btn" onclick="apply('italic')" title="Italic"><i style="font-family: serif;">I</i></button>
-                <button class="format-btn" onclick="apply('insertHorizontalRule')" title="Scene Break">—</button>
+                <button class="format-btn" onclick="apply('italic')" title="Italic"><i>I</i></button>
+                <button class="format-btn" onclick="apply('underline')" title="Underline"><u>U</u></button>
+                <button class="format-btn" onclick="apply('insertHorizontalRule')" title="Divider">—</button>
             </div>
 
             <div class="format-group">
@@ -187,6 +175,7 @@
                 </button>
             </div>
 
+            <button class="action-btn" id="spellcheck-btn" onclick="toggleSpellcheck()" title="Toggle Spellcheck">✔️</button>
             <button class="action-btn" onclick="findAndReplace()" title="Find and Replace">🔍</button>
             
             <select id="sizeSelect" onchange="apply('fontSize', this.value)" class="action-btn">
@@ -203,8 +192,8 @@
 
     <div class="workspace">
         <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">Story Notes</div>
-            <textarea id="notes-area" placeholder="Character details for Callum, Violet, etc..."></textarea>
+            <div style="font-weight: 600; font-size: 0.7rem; text-transform: uppercase; margin-bottom: 10px; opacity: 0.6;">Notes</div>
+            <textarea id="notes-area" placeholder="Jot down ideas here..."></textarea>
         </aside>
 
         <main class="main-container">
@@ -230,27 +219,34 @@
         document.execCommand('styleWithCSS', false, true);
 
         window.onload = () => {
-            editor.innerHTML = localStorage.getItem('rich_writer_v4') || '<div>Begin your chapter...</div>';
-            notes.value = localStorage.getItem('writer_notes') || '';
+            editor.innerHTML = localStorage.getItem('rich_writer_final_v5') || '<div>Start writing...</div>';
+            notes.value = localStorage.getItem('writer_notes_final_v5') || '';
+            const sp = localStorage.getItem('writer_spellcheck') !== 'false';
+            editor.spellcheck = sp;
+            document.getElementById('spellcheck-btn').style.opacity = sp ? "1" : "0.4";
             updateStats();
             if (localStorage.getItem('writer_theme') === 'dark') document.body.classList.add('dark-mode');
         };
 
-        notes.addEventListener('input', () => localStorage.setItem('writer_notes', notes.value));
-        
+        notes.addEventListener('input', () => localStorage.setItem('writer_notes_final_v5', notes.value));
         editor.addEventListener('input', () => {
-            localStorage.setItem('rich_writer_v4', editor.innerHTML);
+            localStorage.setItem('rich_writer_final_v5', editor.innerHTML);
             updateStats();
         });
 
-        function toggleSidebar() {
-            sidebar.classList.toggle('hidden');
+        function toggleSpellcheck() {
+            const isEnabled = editor.spellcheck;
+            editor.spellcheck = !isEnabled;
+            localStorage.setItem('writer_spellcheck', !isEnabled);
+            document.getElementById('spellcheck-btn').style.opacity = !isEnabled ? "1" : "0.4";
+            // Refresh content to trigger browser spellcheck update
+            const temp = editor.innerHTML;
+            editor.innerHTML = '';
+            editor.innerHTML = temp;
         }
 
-        function apply(cmd, val = null) {
-            document.execCommand(cmd, false, val);
-            editor.focus();
-        }
+        function toggleSidebar() { sidebar.classList.toggle('hidden'); }
+        function apply(cmd, val = null) { document.execCommand(cmd, false, val); editor.focus(); }
 
         function updateStats() {
             const text = editor.innerText.trim();
@@ -259,7 +255,7 @@
         }
 
         function findAndReplace() {
-            const f = prompt("Find word:"); if (!f) return;
+            const f = prompt("Find:"); if (!f) return;
             const r = prompt(`Replace "${f}" with:`); if (r === null) return;
             editor.innerHTML = editor.innerHTML.split(f).join(r);
         }
@@ -273,7 +269,7 @@
             const blob = new Blob([editor.innerHTML], { type: 'text/html' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = 'story_draft.html';
+            a.download = 'draft.html';
             a.click();
         }
 
