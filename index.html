@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Universal Rich Writer</title>
+    <title>Universal Rich Writer + Notes</title>
     <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -12,9 +12,9 @@
             --ui-border: #eeeeee;
             --ui-bg: #fdfdfd;
             --accent: #3498db;
+            --sidebar-bg: #f8f9fa;
             --font-serif: "EB Garamond", serif;
             --font-sans: "Inter", sans-serif;
-            --notification-bg: #fff3cd;
         }
 
         body.dark-mode {
@@ -22,7 +22,7 @@
             --text-color: #e0e0e0;
             --ui-border: #333333;
             --ui-bg: #222222;
-            --notification-bg: #332701;
+            --sidebar-bg: #121212;
         }
 
         body {
@@ -33,16 +33,7 @@
             flex-direction: column;
             height: 100vh;
             font-family: var(--font-sans);
-            transition: background-color 0.2s;
-        }
-
-        #save-banner {
-            display: none;
-            background: var(--notification-bg);
-            padding: 10px;
-            text-align: center;
-            font-size: 0.9rem;
-            border-bottom: 1px solid var(--ui-border);
+            overflow: hidden;
         }
 
         nav {
@@ -52,17 +43,80 @@
             padding: 0.75rem 1.5rem;
             border-bottom: 1px solid var(--ui-border);
             background: var(--ui-bg);
-            flex-wrap: wrap;
-            gap: 10px;
+            z-index: 10;
         }
 
-        .controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .workspace {
+            display: flex;
+            flex-grow: 1;
+            overflow: hidden;
+        }
+
+        /* SIDEBAR STYLES */
+        .sidebar {
+            width: 260px;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--ui-border);
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar.hidden {
+            width: 0;
+            padding: 0;
+            border-right: none;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 1rem;
+            color: var(--accent);
+            white-space: nowrap;
+        }
+
+        #notes-area {
+            flex-grow: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-color);
+            font-family: var(--font-sans);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            resize: none;
+        }
+
+        /* MAIN EDITOR STYLES */
+        .main-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 3rem 1rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        #editor {
+            width: 100%;
+            max-width: 750px;
+            min-height: 100%;
+            outline: none;
+            line-height: 1.6;
+            font-family: var(--font-serif);
+            font-size: 18px;
+        }
+
+        .controls { display: flex; gap: 8px; align-items: center; }
 
         .format-group {
             display: flex;
             border: 1px solid var(--ui-border);
             border-radius: 4px;
-            overflow: hidden;
             background: var(--bg-color);
         }
 
@@ -72,48 +126,26 @@
             border-right: 1px solid var(--ui-border);
             padding: 6px 12px;
             cursor: pointer;
-            font-weight: bold;
             color: var(--text-color);
-        }
-
-        .format-btn:hover { background: var(--ui-border); }
-
-        .main-container {
             display: flex;
+            align-items: center;
             justify-content: center;
-            flex-grow: 1;
-            overflow-y: auto;
-            padding: 3rem 1rem;
         }
 
-        /* The Rich Text Area */
-        #editor {
-            width: 100%;
-            max-width: 750px;
-            min-height: 100%;
-            outline: none;
-            line-height: 1.6;
-            color: var(--text-color);
-            font-family: var(--font-serif);
-            font-size: 18px;
-        }
-
-        /* Ensuring nested elements inherit correctly */
-        #editor p, #editor div { margin: 0 0 1em 0; }
-        #editor hr { border: none; border-top: 2px solid var(--ui-border); margin: 2em auto; width: 50%; }
+        .format-btn:last-child { border-right: none; }
+        .format-btn:hover { background: var(--ui-border); }
 
         footer {
             display: flex;
             justify-content: space-between;
-            align-items: center;
             padding: 0.6rem 1.5rem;
             border-top: 1px solid var(--ui-border);
             background: var(--ui-bg);
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: #888;
         }
 
-        select, .action-btn {
+        .action-btn {
             padding: 5px 8px;
             border: 1px solid var(--ui-border);
             border-radius: 4px;
@@ -123,106 +155,113 @@
         }
 
         .download-btn { background-color: var(--accent); color: white; border: none; }
+        
+        /* Simple Icon SVGs */
+        svg { width: 14px; height: 14px; fill: currentColor; }
     </style>
 </head>
 <body>
 
-    <div id="save-banner">
-        Milestone reached! <a href="#" onclick="downloadDraft(); return false;" style="color: inherit; font-weight: bold;">Save a backup</a>. 
-        <span onclick="this.parentElement.style.display='none'" style="margin-left: 15px; cursor: pointer; text-decoration: underline;">Dismiss</span>
-    </div>
-
     <nav>
-        <div style="font-weight: 600; letter-spacing: 0.5px;">WRITER</div>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <button class="action-btn" onclick="toggleSidebar()" title="Toggle Notes">≡</button>
+            <div style="font-weight: 600; letter-spacing: 0.5px;">WRITER</div>
+        </div>
+        
         <div class="controls">
             <div class="format-group">
-                <button class="format-btn" onclick="apply('bold')">B</button>
-                <button class="format-btn" onclick="apply('italic')" style="font-style: italic;">I</button>
-                <button class="format-btn" onclick="apply('insertHorizontalRule')">—</button>
+                <button class="format-btn" onclick="apply('bold')" title="Bold"><b>B</b></button>
+                <button class="format-btn" onclick="apply('italic')" title="Italic"><i style="font-family: serif;">I</i></button>
+                <button class="format-btn" onclick="apply('insertHorizontalRule')" title="Scene Break">—</button>
             </div>
+
             <div class="format-group">
-                <button class="format-btn" onclick="apply('justifyLeft')">L</button>
-                <button class="format-btn" onclick="apply('justifyCenter')">C</button>
-                <button class="format-btn" onclick="apply('justifyRight')">R</button>
+                <button class="format-btn" onclick="apply('justifyLeft')" title="Align Left">
+                    <svg viewBox="0 0 24 24"><path d="M15 15H3v2h12v-2zm0-8H3v2h12V7zM3 13h18v-2H3v2zm0 8h18v-2H3v2zM3 3v2h18V3H3z"/></svg>
+                </button>
+                <button class="format-btn" onclick="apply('justifyCenter')" title="Align Center">
+                    <svg viewBox="0 0 24 24"><path d="M7 15v2h10v-2H7zm-4-4h18v2H3v-2zm4-4h10v2H7V7zm-4-4h18v2H3V3zm4 16h10v2H7v-2z"/></svg>
+                </button>
+                <button class="format-btn" onclick="apply('justifyRight')" title="Align Right">
+                    <svg viewBox="0 0 24 24"><path d="M3 21h18v-2H3v2zm6-4h12v-2H9v2zm-6-4h18v-2H3v2zm6-4h12V7H9v2zM3 3v2h18V3H3z"/></svg>
+                </button>
             </div>
-            <button class="action-btn" onclick="findAndReplace()">🔍</button>
+
+            <button class="action-btn" onclick="findAndReplace()" title="Find and Replace">🔍</button>
             
-            <select id="sizeSelect" onchange="apply('fontSize', this.value)">
+            <select id="sizeSelect" onchange="apply('fontSize', this.value)" class="action-btn">
                 <option value="1">10px</option>
                 <option value="3">16px</option>
                 <option value="4" selected>18px</option>
                 <option value="5">24px</option>
                 <option value="6">32px</option>
-                <option value="7">48px</option>
             </select>
-
-            <select id="fontSelect" onchange="changeGlobalFont(this.value)">
-                <option value="serif">EB Garamond</option>
-                <option value="sans">Inter</option>
-            </select>
-            <button class="action-btn" onclick="toggleDarkMode()">🌓</button>
+            
+            <button class="action-btn" onclick="toggleDarkMode()" title="Dark Mode">🌓</button>
         </div>
     </nav>
 
-    <div class="main-container">
-        <div id="editor" contenteditable="true" spellcheck="true"></div>
+    <div class="workspace">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">Story Notes</div>
+            <textarea id="notes-area" placeholder="Character details for Callum, Violet, etc..."></textarea>
+        </aside>
+
+        <main class="main-container">
+            <div id="editor" contenteditable="true" spellcheck="true"></div>
+        </main>
     </div>
 
     <footer>
         <div id="stats">Words: 0 | Reading Time: 0 min</div>
-        <div class="footer-btns">
+        <div style="display: flex; gap: 8px;">
             <input type="file" id="fileInput" hidden accept=".html" onchange="importFile(event)">
-            <button class="action-btn" onclick="document.getElementById('fileInput').click()">Load .html</button>
+            <button class="action-btn" onclick="document.getElementById('fileInput').click()">Load</button>
             <button class="action-btn download-btn" onclick="downloadDraft()">Download .html</button>
         </div>
     </footer>
 
     <script>
         const editor = document.getElementById('editor');
+        const notes = document.getElementById('notes-area');
         const statsDisplay = document.getElementById('stats');
-        let lastMilestone = 0;
+        const sidebar = document.getElementById('sidebar');
 
-        // Force the editor to use CSS styling instead of <font> tags for better "Rich Text" quality
         document.execCommand('styleWithCSS', false, true);
 
         window.onload = () => {
-            editor.innerHTML = localStorage.getItem('rich_writer_v2') || '<div>Begin your story here...</div>';
+            editor.innerHTML = localStorage.getItem('rich_writer_v4') || '<div>Begin your chapter...</div>';
+            notes.value = localStorage.getItem('writer_notes') || '';
             updateStats();
             if (localStorage.getItem('writer_theme') === 'dark') document.body.classList.add('dark-mode');
-            lastMilestone = Math.floor(getWordCount() / 1000);
         };
 
+        notes.addEventListener('input', () => localStorage.setItem('writer_notes', notes.value));
+        
         editor.addEventListener('input', () => {
-            localStorage.setItem('rich_writer_v2', editor.innerHTML);
+            localStorage.setItem('rich_writer_v4', editor.innerHTML);
             updateStats();
-            checkMilestone();
         });
+
+        function toggleSidebar() {
+            sidebar.classList.toggle('hidden');
+        }
 
         function apply(cmd, val = null) {
             document.execCommand(cmd, false, val);
             editor.focus();
         }
 
-        function getWordCount() {
-            const text = editor.innerText.trim();
-            return text ? text.split(/\s+/).length : 0;
-        }
-
         function updateStats() {
-            const words = getWordCount();
+            const text = editor.innerText.trim();
+            const words = text ? text.split(/\s+/).length : 0;
             statsDisplay.innerText = `Words: ${words} | Reading Time: ~${Math.ceil(words / 200)} min`;
         }
 
-        function checkMilestone() {
-            const currentMilestone = Math.floor(getWordCount() / 1000);
-            if (currentMilestone > lastMilestone) {
-                document.getElementById('save-banner').style.display = 'block';
-                lastMilestone = currentMilestone;
-            }
-        }
-
-        function changeGlobalFont(choice) {
-            editor.style.fontFamily = (choice === 'sans') ? 'var(--font-sans)' : 'var(--font-serif)';
+        function findAndReplace() {
+            const f = prompt("Find word:"); if (!f) return;
+            const r = prompt(`Replace "${f}" with:`); if (r === null) return;
+            editor.innerHTML = editor.innerHTML.split(f).join(r);
         }
 
         function toggleDarkMode() {
@@ -230,34 +269,23 @@
             localStorage.setItem('writer_theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
         }
 
-        function findAndReplace() {
-            const f = prompt("Find:"); if (!f) return;
-            const r = prompt(`Replace "${f}" with:`); if (r === null) return;
-            editor.innerHTML = editor.innerHTML.split(f).join(r);
-            updateStats();
-        }
-
         function downloadDraft() {
             const blob = new Blob([editor.innerHTML], { type: 'text/html' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = 'story_backup.html';
+            a.download = 'story_draft.html';
             a.click();
-            document.getElementById('save-banner').style.display = 'none';
         }
 
         function importFile(event) {
             const reader = new FileReader();
             reader.onload = (e) => {
-                if (confirm("Importing will replace current work. Continue?")) {
-                    editor.innerHTML = e.target.result;
-                    updateStats();
-                }
+                editor.innerHTML = e.target.result;
+                updateStats();
             };
             reader.readAsText(event.target.files[0]);
         }
 
-        // Tab support for Indentation
         editor.addEventListener('keydown', (e) => {
             if (e.key === 'Tab') {
                 e.preventDefault();
