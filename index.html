@@ -205,7 +205,7 @@
         <div id="stats">Words: 0 | Reading Time: 0 min</div>
         <div style="display: flex; gap: 8px;">
             <input type="file" id="fileInput" hidden accept=".html" onchange="importFile(event)">
-            <button class="action-btn" onclick="document.getElementById('fileInput').click()">Load</button>
+            <button class="action-btn" onclick="document.getElementById('fileInput').click()">Upload</button>
             <button class="action-btn download-btn" onclick="downloadDraft()">Download .html</button>
         </div>
     </footer>
@@ -219,8 +219,8 @@
         document.execCommand('styleWithCSS', false, true);
 
         window.onload = () => {
-            editor.innerHTML = localStorage.getItem('rich_writer_final_v5') || '<div>Start writing...</div>';
-            notes.value = localStorage.getItem('writer_notes_final_v5') || '';
+            editor.innerHTML = localStorage.getItem('rich_writer_final_v6') || '<div>Start writing...</div>';
+            notes.value = localStorage.getItem('writer_notes_final_v6') || '';
             const sp = localStorage.getItem('writer_spellcheck') !== 'false';
             editor.spellcheck = sp;
             document.getElementById('spellcheck-btn').style.opacity = sp ? "1" : "0.4";
@@ -228,9 +228,9 @@
             if (localStorage.getItem('writer_theme') === 'dark') document.body.classList.add('dark-mode');
         };
 
-        notes.addEventListener('input', () => localStorage.setItem('writer_notes_final_v5', notes.value));
+        notes.addEventListener('input', () => localStorage.setItem('writer_notes_final_v6', notes.value));
         editor.addEventListener('input', () => {
-            localStorage.setItem('rich_writer_final_v5', editor.innerHTML);
+            localStorage.setItem('rich_writer_final_v6', editor.innerHTML);
             updateStats();
         });
 
@@ -239,7 +239,6 @@
             editor.spellcheck = !isEnabled;
             localStorage.setItem('writer_spellcheck', !isEnabled);
             document.getElementById('spellcheck-btn').style.opacity = !isEnabled ? "1" : "0.4";
-            // Refresh content to trigger browser spellcheck update
             const temp = editor.innerHTML;
             editor.innerHTML = '';
             editor.innerHTML = temp;
