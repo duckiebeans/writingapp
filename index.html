@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Universal Writer</title>
+    <title>Universal Rich Writer</title>
     <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -12,9 +12,10 @@
             --ui-border: #eeeeee;
             --ui-bg: #fdfdfd;
             --accent: #3498db;
-            --placeholder: #999;
             --font-serif: "EB Garamond", serif;
             --font-sans: "Inter", sans-serif;
+            --notification-bg: #fff3cd;
+            --notification-text: #856404;
         }
 
         body.dark-mode {
@@ -22,7 +23,8 @@
             --text-color: #e0e0e0;
             --ui-border: #333333;
             --ui-bg: #222222;
-            --placeholder: #555;
+            --notification-bg: #332701;
+            --notification-text: #ffeeba;
         }
 
         body {
@@ -32,7 +34,19 @@
             display: flex;
             flex-direction: column;
             height: 100vh;
-            transition: background-color 0.2s, color 0.2s;
+            font-family: var(--font-sans);
+            transition: background-color 0.2s;
+        }
+
+        /* Autosave Notification Banner */
+        #save-banner {
+            display: none;
+            background: var(--notification-bg);
+            color: var(--notification-text);
+            padding: 10px;
+            text-align: center;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--ui-border);
         }
 
         nav {
@@ -42,36 +56,31 @@
             padding: 0.75rem 1.5rem;
             border-bottom: 1px solid var(--ui-border);
             background: var(--ui-bg);
-            font-family: var(--font-sans);
-            font-size: 0.85rem;
             flex-wrap: wrap;
             gap: 10px;
         }
 
-        .controls {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
+        .controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
         .format-group {
             display: flex;
             border: 1px solid var(--ui-border);
             border-radius: 4px;
             overflow: hidden;
+            background: var(--bg-color);
         }
 
         .format-btn {
-            background: var(--bg-color);
+            background: transparent;
             border: none;
             border-right: 1px solid var(--ui-border);
-            padding: 5px 12px;
+            padding: 6px 12px;
             cursor: pointer;
             font-weight: bold;
             color: var(--text-color);
+            font-size: 0.85rem;
         }
 
-        .format-btn:last-child { border-right: none; }
         .format-btn:hover { background: var(--ui-border); }
 
         .main-container {
@@ -85,15 +94,17 @@
         #editor {
             width: 100%;
             max-width: 750px;
-            height: 100%;
-            border: none;
+            min-height: 100%;
             outline: none;
-            line-height: 1.7;
-            background: transparent;
+            line-height: 1.6;
             color: var(--text-color);
-            resize: none;
             font-family: var(--font-serif);
+            font-size: 18px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
+
+        #editor hr { border: none; border-top: 2px solid var(--ui-border); margin: 2em auto; width: 50%; }
 
         footer {
             display: flex;
@@ -102,12 +113,9 @@
             padding: 0.6rem 1.5rem;
             border-top: 1px solid var(--ui-border);
             background: var(--ui-bg);
-            font-family: var(--font-sans);
             font-size: 0.8rem;
             color: #888;
         }
-
-        .footer-btns { display: flex; gap: 10px; }
 
         select, .action-btn {
             padding: 5px 8px;
@@ -116,7 +124,6 @@
             background: var(--bg-color);
             color: var(--text-color);
             cursor: pointer;
-            font-family: var(--font-sans);
         }
 
         .download-btn { background-color: var(--accent); color: white; border: none; }
@@ -125,121 +132,107 @@
 </head>
 <body>
 
+    <div id="save-banner">
+        You've written another 1,000 words! It's a good time to 
+        <a href="#" onclick="downloadDraft(); hideBanner(); return false;" style="color: inherit; font-weight: bold;">Download a Backup</a>. 
+        <span onclick="hideBanner()" style="margin-left: 20px; cursor: pointer; text-decoration: underline;">Dismiss</span>
+    </div>
+
     <nav>
         <div style="font-weight: 600; letter-spacing: 0.5px;">WRITER</div>
-        
         <div class="controls">
             <div class="format-group">
-                <button class="format-btn" onclick="formatText('**')">B</button>
-                <button class="format-btn" onclick="formatText('*')" style="font-style: italic; font-family: serif;">I</button>
+                <button class="format-btn" onclick="execCmd('bold')">B</button>
+                <button class="format-btn" onclick="execCmd('italic')" style="font-style: italic; font-family: serif;">I</button>
+                <button class="format-btn" onclick="execCmd('insertHorizontalRule')">—</button>
             </div>
-
-            <select id="sizeSelect" onchange="changeSize()">
-                <option value="10px">10px</option>
-                <option value="12px">12px</option>
-                <option value="14px">14px</option>
-                <option value="16px">16px</option>
-                <option value="18px">18px</option>
-                <option value="20px" selected>20px</option>
-                <option value="24px">24px</option>
-                <option value="28px">28px</option>
-                <option value="32px">32px</option>
+            <div class="format-group">
+                <button class="format-btn" onclick="execCmd('justifyLeft')">L</button>
+                <button class="format-btn" onclick="execCmd('justifyCenter')">C</button>
+                <button class="format-btn" onclick="execCmd('justifyRight')">R</button>
+            </div>
+            <button class="action-btn" onclick="findAndReplace()">🔍</button>
+            <select id="sizeSelect" onchange="changeFontSize(this.value)">
+                <option value="1">10px</option><option value="2">13px</option><option value="3">16px</option>
+                <option value="4" selected>18px</option><option value="5">24px</option><option value="6">32px</option>
+                <option value="7">48px</option>
             </select>
-
-            <select id="fontSelect" onchange="changeFont()">
+            <select id="fontSelect" onchange="changeGlobalFont(this.value)">
                 <option value="serif">EB Garamond</option>
                 <option value="sans">Inter</option>
             </select>
-
-            <button class="action-btn" onclick="toggleDarkMode()" title="Toggle Theme">🌓</button>
+            <button class="action-btn" onclick="toggleDarkMode()">🌓</button>
         </div>
     </nav>
 
     <div class="main-container">
-        <textarea id="editor" placeholder="Begin writing..."></textarea>
+        <div id="editor" contenteditable="true" spellcheck="true"></div>
     </div>
 
     <footer>
         <div id="stats">Words: 0 | Reading Time: 0 min</div>
         <div class="footer-btns">
-            <input type="file" id="fileInput" accept=".txt" onchange="importFile(event)">
-            <button class="action-btn" onclick="document.getElementById('fileInput').click()">Load .txt</button>
-            <button class="action-btn download-btn" onclick="downloadDraft()">Download .txt</button>
+            <input type="file" id="fileInput" accept=".html" onchange="importFile(event)">
+            <button class="action-btn" onclick="document.getElementById('fileInput').click()">Load .html</button>
+            <button class="action-btn download-btn" onclick="downloadDraft()">Download .html</button>
         </div>
     </footer>
 
     <script>
         const editor = document.getElementById('editor');
         const statsDisplay = document.getElementById('stats');
-        const fontSelect = document.getElementById('fontSelect');
-        const sizeSelect = document.getElementById('sizeSelect');
+        const banner = document.getElementById('save-banner');
+        let lastMilestone = 0;
 
         window.onload = () => {
-            editor.value = localStorage.getItem('writer_content') || '';
+            editor.innerHTML = localStorage.getItem('rich_writer_content') || 'Start writing...';
             updateStats();
-            const savedFont = localStorage.getItem('writer_font');
-            if (savedFont) { fontSelect.value = savedFont; changeFont(); }
-            const savedSize = localStorage.getItem('writer_size');
-            if (savedSize) { sizeSelect.value = savedSize; changeSize(); }
             if (localStorage.getItem('writer_theme') === 'dark') document.body.classList.add('dark-mode');
+            
+            // Set initial milestone based on current word count
+            const words = getWordCount();
+            lastMilestone = Math.floor(words / 1000);
         };
 
-        // TAB KEY SUPPORT
-        editor.addEventListener('keydown', function(e) {
-            if (e.key === 'Tab') {
-                e.preventDefault();
-                const start = this.selectionStart;
-                const end = this.selectionEnd;
-
-                // Set indent width (4 spaces is standard)
-                const indent = "    ";
-
-                // Set textarea value to: text before caret + indent + text after caret
-                this.value = this.value.substring(0, start) + indent + this.value.substring(end);
-
-                // Put caret in right position
-                this.selectionStart = this.selectionEnd = start + indent.length;
-                
-                // Save and update stats
-                localStorage.setItem('writer_content', this.value);
-                updateStats();
-            }
-        });
-
         editor.addEventListener('input', () => {
-            localStorage.setItem('writer_content', editor.value);
+            localStorage.setItem('rich_writer_content', editor.innerHTML);
             updateStats();
+            checkMilestone();
         });
 
-        function formatText(symbol) {
-            const start = editor.selectionStart;
-            const end = editor.selectionEnd;
-            const text = editor.value;
-            const selectedText = text.substring(start, end);
-            const newText = text.substring(0, start) + symbol + selectedText + symbol + text.substring(end);
-            editor.value = newText;
-            localStorage.setItem('writer_content', newText);
-            editor.focus();
-            editor.setSelectionRange(start + symbol.length, end + symbol.length);
+        function getWordCount() {
+            const text = editor.innerText.trim();
+            return text ? text.split(/\s+/).length : 0;
+        }
+
+        function checkMilestone() {
+            const currentWords = getWordCount();
+            const currentMilestone = Math.floor(currentWords / 1000);
+            
+            if (currentMilestone > lastMilestone) {
+                banner.style.display = 'block';
+                lastMilestone = currentMilestone;
+            }
+        }
+
+        function hideBanner() { banner.style.display = 'none'; }
+
+        function execCmd(command) { document.execCommand(command, false, null); editor.focus(); }
+        function changeFontSize(size) { document.execCommand('fontSize', false, size); editor.focus(); }
+        function changeGlobalFont(choice) { editor.style.fontFamily = (choice === 'sans') ? 'var(--font-sans)' : 'var(--font-serif)'; }
+
+        function findAndReplace() {
+            const findText = prompt("Find what?");
+            if (!findText) return;
+            const replaceText = prompt(`Replace "${findText}" with?`);
+            if (replaceText === null) return;
+            editor.innerHTML = editor.innerHTML.replace(new RegExp(findText, 'g'), replaceText);
+            updateStats();
         }
 
         function updateStats() {
-            const text = editor.value.trim();
-            const words = text ? text.split(/\s+/).length : 0;
-            const readingTime = Math.ceil(words / 200); 
-            statsDisplay.innerText = `Words: ${words} | Reading Time: ~${readingTime} min`;
-        }
-
-        function changeFont() {
-            const choice = fontSelect.value;
-            editor.style.fontFamily = (choice === 'sans') ? 'var(--font-sans)' : 'var(--font-serif)';
-            localStorage.setItem('writer_font', choice);
-        }
-
-        function changeSize() {
-            const size = sizeSelect.value;
-            editor.style.fontSize = size;
-            localStorage.setItem('writer_size', size);
+            const words = getWordCount();
+            statsDisplay.innerText = `Words: ${words} | Reading Time: ~${Math.ceil(words / 200)} min`;
         }
 
         function toggleDarkMode() {
@@ -248,11 +241,12 @@
         }
 
         function downloadDraft() {
-            const blob = new Blob([editor.value], { type: 'text/plain' });
+            const blob = new Blob([editor.innerHTML], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url; a.download = 'draft.txt'; a.click();
+            a.href = url; a.download = 'story_draft.html'; a.click();
             URL.revokeObjectURL(url);
+            hideBanner();
         }
 
         function importFile(event) {
@@ -261,13 +255,20 @@
             const reader = new FileReader();
             reader.onload = (e) => {
                 if (confirm("Replace current draft?")) {
-                    editor.value = e.target.result;
-                    localStorage.setItem('writer_content', e.target.result);
+                    editor.innerHTML = e.target.result;
+                    localStorage.setItem('rich_writer_content', editor.innerHTML);
                     updateStats();
                 }
             };
             reader.readAsText(file);
         }
+
+        editor.addEventListener('keydown', (e) => {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                document.execCommand('insertHTML', false, '&#160;&#160;&#160;&#160;');
+            }
+        });
     </script>
 </body>
 </html>
