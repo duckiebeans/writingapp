@@ -15,7 +15,6 @@
             --font-serif: "EB Garamond", serif;
             --font-sans: "Inter", sans-serif;
             --notification-bg: #fff3cd;
-            --notification-text: #856404;
         }
 
         body.dark-mode {
@@ -24,7 +23,6 @@
             --ui-border: #333333;
             --ui-bg: #222222;
             --notification-bg: #332701;
-            --notification-text: #ffeeba;
         }
 
         body {
@@ -38,11 +36,9 @@
             transition: background-color 0.2s;
         }
 
-        /* Autosave Notification Banner */
         #save-banner {
             display: none;
             background: var(--notification-bg);
-            color: var(--notification-text);
             padding: 10px;
             text-align: center;
             font-size: 0.9rem;
@@ -78,7 +74,6 @@
             cursor: pointer;
             font-weight: bold;
             color: var(--text-color);
-            font-size: 0.85rem;
         }
 
         .format-btn:hover { background: var(--ui-border); }
@@ -91,6 +86,7 @@
             padding: 3rem 1rem;
         }
 
+        /* The Rich Text Area */
         #editor {
             width: 100%;
             max-width: 750px;
@@ -100,10 +96,10 @@
             color: var(--text-color);
             font-family: var(--font-serif);
             font-size: 18px;
-            white-space: pre-wrap;
-            word-wrap: break-word;
         }
 
+        /* Ensuring nested elements inherit correctly */
+        #editor p, #editor div { margin: 0 0 1em 0; }
         #editor hr { border: none; border-top: 2px solid var(--ui-border); margin: 2em auto; width: 50%; }
 
         footer {
@@ -127,36 +123,39 @@
         }
 
         .download-btn { background-color: var(--accent); color: white; border: none; }
-        #fileInput { display: none; }
     </style>
 </head>
 <body>
 
     <div id="save-banner">
-        You've written another 1,000 words! It's a good time to 
-        <a href="#" onclick="downloadDraft(); hideBanner(); return false;" style="color: inherit; font-weight: bold;">Download a Backup</a>. 
-        <span onclick="hideBanner()" style="margin-left: 20px; cursor: pointer; text-decoration: underline;">Dismiss</span>
+        Milestone reached! <a href="#" onclick="downloadDraft(); return false;" style="color: inherit; font-weight: bold;">Save a backup</a>. 
+        <span onclick="this.parentElement.style.display='none'" style="margin-left: 15px; cursor: pointer; text-decoration: underline;">Dismiss</span>
     </div>
 
     <nav>
         <div style="font-weight: 600; letter-spacing: 0.5px;">WRITER</div>
         <div class="controls">
             <div class="format-group">
-                <button class="format-btn" onclick="execCmd('bold')">B</button>
-                <button class="format-btn" onclick="execCmd('italic')" style="font-style: italic; font-family: serif;">I</button>
-                <button class="format-btn" onclick="execCmd('insertHorizontalRule')">—</button>
+                <button class="format-btn" onclick="apply('bold')">B</button>
+                <button class="format-btn" onclick="apply('italic')" style="font-style: italic;">I</button>
+                <button class="format-btn" onclick="apply('insertHorizontalRule')">—</button>
             </div>
             <div class="format-group">
-                <button class="format-btn" onclick="execCmd('justifyLeft')">L</button>
-                <button class="format-btn" onclick="execCmd('justifyCenter')">C</button>
-                <button class="format-btn" onclick="execCmd('justifyRight')">R</button>
+                <button class="format-btn" onclick="apply('justifyLeft')">L</button>
+                <button class="format-btn" onclick="apply('justifyCenter')">C</button>
+                <button class="format-btn" onclick="apply('justifyRight')">R</button>
             </div>
             <button class="action-btn" onclick="findAndReplace()">🔍</button>
-            <select id="sizeSelect" onchange="changeFontSize(this.value)">
-                <option value="1">10px</option><option value="2">13px</option><option value="3">16px</option>
-                <option value="4" selected>18px</option><option value="5">24px</option><option value="6">32px</option>
+            
+            <select id="sizeSelect" onchange="apply('fontSize', this.value)">
+                <option value="1">10px</option>
+                <option value="3">16px</option>
+                <option value="4" selected>18px</option>
+                <option value="5">24px</option>
+                <option value="6">32px</option>
                 <option value="7">48px</option>
             </select>
+
             <select id="fontSelect" onchange="changeGlobalFont(this.value)">
                 <option value="serif">EB Garamond</option>
                 <option value="sans">Inter</option>
@@ -172,7 +171,7 @@
     <footer>
         <div id="stats">Words: 0 | Reading Time: 0 min</div>
         <div class="footer-btns">
-            <input type="file" id="fileInput" accept=".html" onchange="importFile(event)">
+            <input type="file" id="fileInput" hidden accept=".html" onchange="importFile(event)">
             <button class="action-btn" onclick="document.getElementById('fileInput').click()">Load .html</button>
             <button class="action-btn download-btn" onclick="downloadDraft()">Download .html</button>
         </div>
@@ -181,53 +180,32 @@
     <script>
         const editor = document.getElementById('editor');
         const statsDisplay = document.getElementById('stats');
-        const banner = document.getElementById('save-banner');
         let lastMilestone = 0;
 
+        // Force the editor to use CSS styling instead of <font> tags for better "Rich Text" quality
+        document.execCommand('styleWithCSS', false, true);
+
         window.onload = () => {
-            editor.innerHTML = localStorage.getItem('rich_writer_content') || 'Start writing...';
+            editor.innerHTML = localStorage.getItem('rich_writer_v2') || '<div>Begin your story here...</div>';
             updateStats();
             if (localStorage.getItem('writer_theme') === 'dark') document.body.classList.add('dark-mode');
-            
-            // Set initial milestone based on current word count
-            const words = getWordCount();
-            lastMilestone = Math.floor(words / 1000);
+            lastMilestone = Math.floor(getWordCount() / 1000);
         };
 
         editor.addEventListener('input', () => {
-            localStorage.setItem('rich_writer_content', editor.innerHTML);
+            localStorage.setItem('rich_writer_v2', editor.innerHTML);
             updateStats();
             checkMilestone();
         });
 
+        function apply(cmd, val = null) {
+            document.execCommand(cmd, false, val);
+            editor.focus();
+        }
+
         function getWordCount() {
             const text = editor.innerText.trim();
             return text ? text.split(/\s+/).length : 0;
-        }
-
-        function checkMilestone() {
-            const currentWords = getWordCount();
-            const currentMilestone = Math.floor(currentWords / 1000);
-            
-            if (currentMilestone > lastMilestone) {
-                banner.style.display = 'block';
-                lastMilestone = currentMilestone;
-            }
-        }
-
-        function hideBanner() { banner.style.display = 'none'; }
-
-        function execCmd(command) { document.execCommand(command, false, null); editor.focus(); }
-        function changeFontSize(size) { document.execCommand('fontSize', false, size); editor.focus(); }
-        function changeGlobalFont(choice) { editor.style.fontFamily = (choice === 'sans') ? 'var(--font-sans)' : 'var(--font-serif)'; }
-
-        function findAndReplace() {
-            const findText = prompt("Find what?");
-            if (!findText) return;
-            const replaceText = prompt(`Replace "${findText}" with?`);
-            if (replaceText === null) return;
-            editor.innerHTML = editor.innerHTML.replace(new RegExp(findText, 'g'), replaceText);
-            updateStats();
         }
 
         function updateStats() {
@@ -235,38 +213,55 @@
             statsDisplay.innerText = `Words: ${words} | Reading Time: ~${Math.ceil(words / 200)} min`;
         }
 
+        function checkMilestone() {
+            const currentMilestone = Math.floor(getWordCount() / 1000);
+            if (currentMilestone > lastMilestone) {
+                document.getElementById('save-banner').style.display = 'block';
+                lastMilestone = currentMilestone;
+            }
+        }
+
+        function changeGlobalFont(choice) {
+            editor.style.fontFamily = (choice === 'sans') ? 'var(--font-sans)' : 'var(--font-serif)';
+        }
+
         function toggleDarkMode() {
             document.body.classList.toggle('dark-mode');
             localStorage.setItem('writer_theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
         }
 
+        function findAndReplace() {
+            const f = prompt("Find:"); if (!f) return;
+            const r = prompt(`Replace "${f}" with:`); if (r === null) return;
+            editor.innerHTML = editor.innerHTML.split(f).join(r);
+            updateStats();
+        }
+
         function downloadDraft() {
             const blob = new Blob([editor.innerHTML], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url; a.download = 'story_draft.html'; a.click();
-            URL.revokeObjectURL(url);
-            hideBanner();
+            a.href = URL.createObjectURL(blob);
+            a.download = 'story_backup.html';
+            a.click();
+            document.getElementById('save-banner').style.display = 'none';
         }
 
         function importFile(event) {
-            const file = event.target.files[0];
-            if (!file) return;
             const reader = new FileReader();
             reader.onload = (e) => {
-                if (confirm("Replace current draft?")) {
+                if (confirm("Importing will replace current work. Continue?")) {
                     editor.innerHTML = e.target.result;
-                    localStorage.setItem('rich_writer_content', editor.innerHTML);
                     updateStats();
                 }
             };
-            reader.readAsText(file);
+            reader.readAsText(event.target.files[0]);
         }
 
+        // Tab support for Indentation
         editor.addEventListener('keydown', (e) => {
             if (e.key === 'Tab') {
                 e.preventDefault();
-                document.execCommand('insertHTML', false, '&#160;&#160;&#160;&#160;');
+                document.execCommand('insertHTML', false, '&nbsp;&nbsp;&nbsp;&nbsp;');
             }
         });
     </script>
