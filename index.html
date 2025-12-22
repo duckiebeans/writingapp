@@ -3,23 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Universal Writer App</title>
+    <title>Universal Writer</title>
     <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            /* Light Mode Variables */
             --bg-color: #ffffff;
             --text-color: #1a1a1a;
             --ui-border: #eeeeee;
             --ui-bg: #fdfdfd;
             --accent: #3498db;
             --placeholder: #999;
-            
             --font-serif: "EB Garamond", serif;
             --font-sans: "Inter", sans-serif;
         }
 
-        /* Dark Mode Variables */
         body.dark-mode {
             --bg-color: #1a1a1a;
             --text-color: #e0e0e0;
@@ -47,13 +44,35 @@
             background: var(--ui-bg);
             font-family: var(--font-sans);
             font-size: 0.85rem;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
         .controls {
             display: flex;
-            gap: 15px;
+            gap: 12px;
             align-items: center;
         }
+
+        .format-group {
+            display: flex;
+            border: 1px solid var(--ui-border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .format-btn {
+            background: var(--bg-color);
+            border: none;
+            border-right: 1px solid var(--ui-border);
+            padding: 5px 12px;
+            cursor: pointer;
+            font-weight: bold;
+            color: var(--text-color);
+        }
+
+        .format-btn:last-child { border-right: none; }
+        .format-btn:hover { background: var(--ui-border); }
 
         .main-container {
             display: flex;
@@ -65,20 +84,15 @@
 
         #editor {
             width: 100%;
-            max-width: 700px;
+            max-width: 750px;
             height: 100%;
             border: none;
             outline: none;
-            font-size: 1.3rem;
             line-height: 1.7;
             background: transparent;
             color: var(--text-color);
             resize: none;
             font-family: var(--font-serif);
-        }
-
-        #editor::placeholder {
-            color: var(--placeholder);
         }
 
         footer {
@@ -93,8 +107,10 @@
             color: #888;
         }
 
-        select, button {
-            padding: 5px 10px;
+        .footer-btns { display: flex; gap: 10px; }
+
+        select, .action-btn {
+            padding: 5px 8px;
             border: 1px solid var(--ui-border);
             border-radius: 4px;
             background: var(--bg-color);
@@ -103,32 +119,39 @@
             font-family: var(--font-sans);
         }
 
-        .download-btn {
-            background-color: var(--accent);
-            color: white;
-            border: none;
-        }
-
-        .mode-toggle {
-            font-size: 1rem;
-            background: none;
-            border: none;
-            padding: 0;
-            cursor: pointer;
-        }
+        .download-btn { background-color: var(--accent); color: white; border: none; }
+        #fileInput { display: none; }
     </style>
 </head>
-<body class="">
+<body>
 
     <nav>
         <div style="font-weight: 600; letter-spacing: 0.5px;">WRITER</div>
         
         <div class="controls">
-            <button class="mode-toggle" onclick="toggleDarkMode()" title="Toggle Light/Dark Mode">🌓</button>
+            <div class="format-group">
+                <button class="format-btn" onclick="formatText('**')">B</button>
+                <button class="format-btn" onclick="formatText('*')" style="font-style: italic; font-family: serif;">I</button>
+            </div>
+
+            <select id="sizeSelect" onchange="changeSize()">
+                <option value="10px">10px</option>
+                <option value="12px">12px</option>
+                <option value="14px">14px</option>
+                <option value="16px">16px</option>
+                <option value="18px">18px</option>
+                <option value="20px" selected>20px</option>
+                <option value="24px">24px</option>
+                <option value="28px">28px</option>
+                <option value="32px">32px</option>
+            </select>
+
             <select id="fontSelect" onchange="changeFont()">
                 <option value="serif">EB Garamond</option>
                 <option value="sans">Inter</option>
             </select>
+
+            <button class="action-btn" onclick="toggleDarkMode()" title="Toggle Theme">🌓</button>
         </div>
     </nav>
 
@@ -137,43 +160,74 @@
     </div>
 
     <footer>
-        <div id="stats">Words: 0 | Characters: 0</div>
-        <button class="download-btn" onclick="downloadDraft()">Download .txt</button>
+        <div id="stats">Words: 0 | Reading Time: 0 min</div>
+        <div class="footer-btns">
+            <input type="file" id="fileInput" accept=".txt" onchange="importFile(event)">
+            <button class="action-btn" onclick="document.getElementById('fileInput').click()">Load .txt</button>
+            <button class="action-btn download-btn" onclick="downloadDraft()">Download .txt</button>
+        </div>
     </footer>
 
     <script>
         const editor = document.getElementById('editor');
         const statsDisplay = document.getElementById('stats');
         const fontSelect = document.getElementById('fontSelect');
+        const sizeSelect = document.getElementById('sizeSelect');
 
         window.onload = () => {
-            // Load Content
             editor.value = localStorage.getItem('writer_content') || '';
             updateStats();
-
-            // Load Font Preference
             const savedFont = localStorage.getItem('writer_font');
-            if (savedFont) {
-                fontSelect.value = savedFont;
-                changeFont();
-            }
-
-            // Load Theme Preference
-            if (localStorage.getItem('writer_theme') === 'dark') {
-                document.body.classList.add('dark-mode');
-            }
+            if (savedFont) { fontSelect.value = savedFont; changeFont(); }
+            const savedSize = localStorage.getItem('writer_size');
+            if (savedSize) { sizeSelect.value = savedSize; changeSize(); }
+            if (localStorage.getItem('writer_theme') === 'dark') document.body.classList.add('dark-mode');
         };
+
+        // TAB KEY SUPPORT
+        editor.addEventListener('keydown', function(e) {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const start = this.selectionStart;
+                const end = this.selectionEnd;
+
+                // Set indent width (4 spaces is standard)
+                const indent = "    ";
+
+                // Set textarea value to: text before caret + indent + text after caret
+                this.value = this.value.substring(0, start) + indent + this.value.substring(end);
+
+                // Put caret in right position
+                this.selectionStart = this.selectionEnd = start + indent.length;
+                
+                // Save and update stats
+                localStorage.setItem('writer_content', this.value);
+                updateStats();
+            }
+        });
 
         editor.addEventListener('input', () => {
             localStorage.setItem('writer_content', editor.value);
             updateStats();
         });
 
+        function formatText(symbol) {
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            const text = editor.value;
+            const selectedText = text.substring(start, end);
+            const newText = text.substring(0, start) + symbol + selectedText + symbol + text.substring(end);
+            editor.value = newText;
+            localStorage.setItem('writer_content', newText);
+            editor.focus();
+            editor.setSelectionRange(start + symbol.length, end + symbol.length);
+        }
+
         function updateStats() {
             const text = editor.value.trim();
             const words = text ? text.split(/\s+/).length : 0;
-            const chars = text.length;
-            statsDisplay.innerText = `Words: ${words} | Characters: ${chars}`;
+            const readingTime = Math.ceil(words / 200); 
+            statsDisplay.innerText = `Words: ${words} | Reading Time: ~${readingTime} min`;
         }
 
         function changeFont() {
@@ -182,22 +236,38 @@
             localStorage.setItem('writer_font', choice);
         }
 
+        function changeSize() {
+            const size = sizeSelect.value;
+            editor.style.fontSize = size;
+            localStorage.setItem('writer_size', size);
+        }
+
         function toggleDarkMode() {
             document.body.classList.toggle('dark-mode');
-            const theme = document.body.classList.contains('dark-mode') ? 'dark' : 'light';
-            localStorage.setItem('writer_theme', theme);
+            localStorage.setItem('writer_theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
         }
 
         function downloadDraft() {
             const blob = new Blob([editor.value], { type: 'text/plain' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url;
-            a.download = 'story_draft.txt';
-            a.click();
+            a.href = url; a.download = 'draft.txt'; a.click();
             URL.revokeObjectURL(url);
         }
-    </script>
 
+        function importFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                if (confirm("Replace current draft?")) {
+                    editor.value = e.target.result;
+                    localStorage.setItem('writer_content', e.target.result);
+                    updateStats();
+                }
+            };
+            reader.readAsText(file);
+        }
+    </script>
 </body>
 </html>
